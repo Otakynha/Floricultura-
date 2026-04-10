@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Fiados</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f2f2;
+  padding: 15px;
+}
+
+h2 {
+  text-align: center;
+  color: #2e7d32;
+}
+
+.voltar {
+  display: block;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.form input {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+#pesquisa {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 10px;
+  width: 100%;
+  margin-top: 10px;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  background: #2e7d32;
+  color: white;
+}
+
+button:hover {
+  background: #1b5e20;
+}
+
+.cliente {
+  background: white;
+  margin-top: 10px;
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.detalhes {
+  display: none;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.verde {
+  color: green;
+}
+
+.vermelho {
+  color: red;
+}
+
+#boxPagamento {
+  display: none;
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -30%);
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px #000;
+  width: 80%;
+}
+</style>
+</head>
+
+<body>
+
+<a href="index.html" class="voltar">⬅ Voltar</a>
+
+<h2>📒 Registro de Fiados</h2>
+
+<input id="pesquisa" placeholder="🔍 Pesquisar cliente..." oninput="render()">
+
+<div class="form">
+<input id="nome" placeholder="Nome do cliente">
+<input id="telefone" placeholder="Telefone">
+<input id="produto" placeholder="Produto">
+<input id="total" type="number" placeholder="Valor total">
+<input id="pago" type="number" placeholder="Valor pago">
+
+<button onclick="adicionar()">Adicionar Cliente</button>
+</div>
+
+<div id="lista"></div>
+
+<div id="boxPagamento">
+  <h3>Adicionar Pagamento</h3>
+  <input id="valorPagamento" type="number" placeholder="Digite o valor">
+  <button onclick="confirmarPagamento()">Confirmar</button>
+  <button onclick="fecharBox()">Cancelar</button>
+</div>
+
+<script>
+let lista = JSON.parse(localStorage.getItem("fiados")) || [];
+let indexAtual = null;
+
+function salvar() {
+  localStorage.setItem("fiados", JSON.stringify(lista));
+}
+
+function adicionar() {
+  let nome = document.getElementById("nome").value;
+  let telefone = document.getElementById("telefone").value;
+  let produto = document.getElementById("produto").value;
+  let total = parseFloat(document.getElementById("total").value);
+  let pago = parseFloat(document.getElementById("pago").value);
+
+  if (!nome || !telefone || !produto || isNaN(total) || isNaN(pago)) {
+    alert("Preencha tudo!");
+    return;
+  }
+
+  lista.push({ 
+    nome, telefone, produto, total, pago, 
+    dataInicio: new Date().toISOString(),
+    dataFinalizado: null 
+  });
+
+  salvar();
+  render();
+
+  document.getElementById("nome").value = "";
+  document.getElementById("telefone").value = "";
+  document.getElementById("produto").value = "";
+  document.getElementById("total").value = "";
+  document.getElementById("pago").value = "";
+}
+
+function render() {
+  let listaDiv = document.getElementById("lista");
+  listaDiv.innerHTML = "";
+
+  let busca = document.getElementById("pesquisa").value.toLowerCase();
+  let agora = new Date();
+
+  lista = lista.filter(item => {
+    if (item.dataFinalizado) {
+      let diff = (agora - new Date(item.dataFinalizado)) / (1000 * 60 * 60 * 24);
+      return diff < 3;
+    }
+    return true;
+  });
+
+  lista.forEach((item, i) => {
+    if (!item.nome.toLowerCase().includes(busca)) return;
+
+    let falta = item.total - item.pago;
+    let classe = falta <= 0 ? "verde" : "vermelho";
+
+    if (falta <= 0 && !item.dataFinalizado) {
+      item.dataFinalizado = new Date().toISOString();
+    }
+
+    let inicio = new Date(item.dataInicio);
+    let dias = Math.floor((agora - inicio) / (1000 * 60 * 60 * 24));
+
+    listaDiv.innerHTML += `
+      <div class="cliente" onclick="toggle(${i})">
+        <b class="${classe}">${item.nome}</b>
+
+        <div class="detalhes" id="det${i}">
+          📅 Deve há: ${dias} dia(s)<br>
+          📞 ${item.telefone}<br>
+          🛒 ${item.produto}<br>
+          💰 Total: R$ ${item.total.toFixed(2)}<br>
+          ✔ Pago: R$ ${item.pago.toFixed(2)}<br>
+          ❗ Falta: R$ ${falta.toFixed(2)}<br><br>
+
+          <button onclick="abrirPagamento(${i}); event.stopPropagation()">+ Pagar</button>
+          <button onclick="remover(${i}); event.stopPropagation()">Excluir</button>
+        </div>
+      </div>
+    `;
+  });
+
+  salvar();
+}
+
+function toggle(i) {
+  let el = document.getElementById("det" + i);
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
+function abrirPagamento(i) {
+  indexAtual = i;
+  document.getElementById("valorPagamento").value = "";
+  document.getElementById("boxPagamento").style.display = "block";
+}
+
+function confirmarPagamento() {
+  let valor = parseFloat(document.getElementById("valorPagamento").value);
+
+  if (isNaN(valor)) return alert("Digite um valor!");
+
+  lista[indexAtual].pago += valor;
+
+  salvar();
+  render();
+  fecharBox();
+}
+
+function fecharBox() {
+  document.getElementById("boxPagamento").style.display = "none";
+}
+
+function remover(i) {
+  lista.splice(i, 1);
+  salvar();
+  render();
+}
+
+render();
+</script>
+
+</body>
+</html>

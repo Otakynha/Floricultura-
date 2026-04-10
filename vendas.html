@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Controle de Caixa</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f2f2;
+  padding: 15px;
+}
+
+h1 {
+  text-align: center;
+  color: #2e7d32;
+}
+
+/* MENU */
+.menu {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.menu a {
+  text-decoration: none;
+  background: #2e7d32;
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.menu a:hover {
+  background: #1b5e20;
+}
+
+.container {
+  background: white;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+input, button {
+  padding: 10px;
+  margin: 5px 0;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  background: #2e7d32;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1b5e20;
+}
+
+table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+.total {
+  font-weight: bold;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🌸 Controle de Caixa</h1>
+
+<div class="menu">
+  <a href="index.html" class="voltar">⬅ Voltar</a>
+</div>
+
+<div class="container">
+<h2>Selecionar Data</h2>
+<input type="date" id="data" onchange="carregar()">
+</div>
+
+<div class="container">
+<h2>Vendas</h2>
+
+<input id="produto" placeholder="Produto">
+<input id="valorVenda" type="number" placeholder="Valor">
+<button onclick="addVenda()">Adicionar</button>
+
+<table>
+<thead>
+<tr><th>Produto</th><th>Valor</th><th>Ação</th></tr>
+</thead>
+<tbody id="vendas"></tbody>
+</table>
+
+<p class="total">Total do Dia: R$ <span id="totalV">0.00</span></p>
+</div>
+
+<div class="container">
+<h2>Retiradas</h2>
+
+<input id="motivo" placeholder="Motivo">
+<input id="valorRetirada" type="number" placeholder="Valor">
+<button onclick="addRetirada()">Adicionar</button>
+
+<table>
+<thead>
+<tr><th>Motivo</th><th>Valor</th><th>Ação</th></tr>
+</thead>
+<tbody id="retiradas"></tbody>
+</table>
+
+<p class="total">Total do Dia: R$ <span id="totalR">0.00</span></p>
+</div>
+
+<div class="container">
+<h2>💰 Caixa do Dia: R$ <span id="caixa">0.00</span></h2>
+</div>
+
+<p style="opacity: 0.6; text-align:center;">
+Total Geral Vendas: R$ <span id="geralV">0.00</span> |
+Total Geral Retiradas: R$ <span id="geralR">0.00</span> |
+Caixa Geral: R$ <span id="geralCaixa">0.00</span>
+</p>
+
+<script>
+let dados = {};
+
+let hoje = new Date().toISOString().split("T")[0];
+document.getElementById("data").value = hoje;
+
+function getData() {
+  return document.getElementById("data").value;
+}
+
+function carregar() {
+  let d = getData();
+  let salvo = localStorage.getItem(d);
+
+  dados[d] = salvo ? JSON.parse(salvo) : {v: [], r: []};
+
+  render();
+}
+
+function salvar() {
+  localStorage.setItem(getData(), JSON.stringify(dados[getData()]));
+}
+
+function addVenda() {
+  let p = produto.value;
+  let v = parseFloat(valorVenda.value);
+
+  if (!p || isNaN(v)) return alert("Preencha!");
+
+  dados[getData()].v.push({p, v});
+  salvar();
+  render();
+
+  produto.value = "";
+  valorVenda.value = "";
+}
+
+function addRetirada() {
+  let m = motivo.value;
+  let v = parseFloat(valorRetirada.value);
+
+  if (!m || isNaN(v)) return alert("Preencha!");
+
+  dados[getData()].r.push({m, v});
+  salvar();
+  render();
+
+  motivo.value = "";
+  valorRetirada.value = "";
+}
+
+function render() {
+  let d = getData();
+  let v = dados[d].v;
+  let r = dados[d].r;
+
+  vendas.innerHTML = "";
+  retiradas.innerHTML = "";
+
+  let tv = 0;
+  let tr = 0;
+
+  v.forEach((item, i) => {
+    tv += item.v;
+    vendas.innerHTML += `
+      <tr>
+        <td>${item.p}</td>
+        <td>${item.v.toFixed(2)}</td>
+        <td><button onclick="delV(${i})">X</button></td>
+      </tr>`;
+  });
+
+  r.forEach((item, i) => {
+    tr += item.v;
+    retiradas.innerHTML += `
+      <tr>
+        <td>${item.m}</td>
+        <td>${item.v.toFixed(2)}</td>
+        <td><button onclick="delR(${i})">X</button></td>
+      </tr>`;
+  });
+
+  totalV.innerText = tv.toFixed(2);
+  totalR.innerText = tr.toFixed(2);
+  caixa.innerText = (tv - tr).toFixed(2);
+
+  let totalGeralV = 0;
+  let totalGeralR = 0;
+
+  for (let chave in localStorage) {
+    try {
+      let dadosSalvos = JSON.parse(localStorage.getItem(chave));
+
+      if (dadosSalvos && dadosSalvos.v && dadosSalvos.r) {
+        dadosSalvos.v.forEach(item => totalGeralV += item.v);
+        dadosSalvos.r.forEach(item => totalGeralR += item.v);
+      }
+    } catch(e) {}
+  }
+
+  geralV.innerText = totalGeralV.toFixed(2);
+  geralR.innerText = totalGeralR.toFixed(2);
+  geralCaixa.innerText = (totalGeralV - totalGeralR).toFixed(2);
+}
+
+function delV(i) {
+  dados[getData()].v.splice(i,1);
+  salvar();
+  render();
+}
+
+function delR(i) {
+  dados[getData()].r.splice(i,1);
+  salvar();
+  render();
+}
+
+carregar();
+</script>
+
+</body>
+</html>
